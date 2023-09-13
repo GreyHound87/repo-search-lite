@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Search</title>
+    <link rel="stylesheet" href="main.css" />
+  </head>
+  <body>
+    <main>
+      <section class="search">
+        <form id="searchQuery" class="search__query" action="">
+          <input id="searchEnter" class="search__enter" type="search" />
+        </form>
+        <ul id="searchAutofill" class="search__autofill">
+          <!--     Использовал для изначальной стилизации элементов 
+          <li class="search__result">Redux</li>
+          <li class="search__result">Redux-thunk</li>
+          <li class="search__result">Redux-actions</li>
+          <li class="search__result">React-redux</li>
+          <li class="search__result">Redux-saga</li> -->
+        </ul>
+        <table id="searchSelect" class="search__select">
+          <!--     Использовал для изначальной стилизации элементов       
+          <tr class="search__card">
+            <th class="search__info">
+              <span class="search__name">Name: react</span>
+              <span class="search__owner">Owner: facebook</span>
+              <span class="search__stars">Stars: 145231</span>
+            </th>
+            <th class="search__cont">
+              <button class="search__btn">
+                <span class="search__line"></span>
+                <span class="search__line"></span>
+              </button>
+            </th>
+          </tr>
+          <tr class="search__card">
+            <th class="search__info">
+              <span class="search__name">Name: react</span>
+              <span class="search__owner">Owner: facebook</span>
+              <span class="search__stars">Stars: 145231</span>
+            </th>
+            <th class="search__cont">
+              <button class="search__btn">
+                <span class="search__line"></span>
+                <span class="search__line"></span>
+              </button>
+            </th>
+          </tr>
+          <tr class="search__card">
+            <th class="search__info">
+              <span class="search__name">Name: react</span>
+              <span class="search__owner">Owner: facebook</span>
+              <span class="search__stars">Stars: 145231</span>
+            </th>
+            <th class="search__cont">
+              <button class="search__btn">
+                <span class="search__line"></span>
+                <span class="search__line"></span>
+              </button>
+            </th>
+          </tr> -->
+        </table>
+        <span id="searchMessage" class="search__message"></span>
+      </section>
+    </main>
+    <script>
+      const searchInput = document.getElementById("searchEnter");
+      const searchAutofill = document.getElementById("searchAutofill");
+      const searchSelect = document.querySelector(".search__select");
+
+      // Вebounce в виде декоратора
+      const debounce = (func, delay) => {
+        let timeoutId;
+        return (...args) => {
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => func(...args), delay);
+        };
+      };
+
+      const createRepoData = (item) => {
+        return {
+          name: item.name,
+          owner: item.owner.login,
+          stars: item.stargazers_count,
+        };
+      };
+
+      // Поиска репозиториев
+      const searchRepo = async () => {
+        const query = searchInput.value.trim();
+        if (query === "") {
+          clearAutofill(); // Очищаем подсказки
+          return;
+        }
+        try {
+          const response = await fetch(
+            `https://api.github.com/search/repositories?q=${query}`
+          );
+          if (!response.ok) {
+            if (response.status === 403) {
+              // Сообщение о ошибке 403
+              dispMessage("Please try again later.");
+            } else {
+              throw new Error("Response error");
+            }
+          }
+          const data = await response.json();
+          // Карточки первых пяти репо
+          const repoCards = data.items
+            .slice(0, 5)
+            .map((item) => createRepoData(item));
+          displayAutofill(repoCards); // Вывод автоподсказок
+        } catch (error) {
+          console.error("Data error:", error);
+        }
+      };
+
+      // Очистка подсказок
+      const clearAutofill = () => {
+        while (searchAutofill.firstChild) {
+          searchAutofill.removeChild(searchAutofill.firstChild);
+        }
+      };
+
+      const dispMessage = (message) => {
+        const searchMessage = document.getElementById("searchMessage");
+        searchMessage.textContent = message;
+        searchMessage.style.display = "flex";
+
+        // Сообщение временное
+        setTimeout(() => {
+          searchMessage.style.display = "none";
+        }, 6000);
+      };
+
+      // Добавления репо в таблицу
+      const addRepoToTable = (name, owner, stars) => {
+        const tableRow = document.createElement("tr");
+        tableRow.classList.add("search__card");
+
+        const tableData = document.createElement("th");
+        tableData.classList.add("search__info");
+
+        const nameSpan = document.createElement("span");
+        nameSpan.classList.add("search__name");
+        nameSpan.textContent = `Name: ${name}`;
+
+        const ownerSpan = document.createElement("span");
+        ownerSpan.classList.add("search__owner");
+        ownerSpan.textContent = `Owner: ${owner}`;
+
+        const starsSpan = document.createElement("span");
+        starsSpan.classList.add("search__stars");
+        starsSpan.textContent = `Stars: ${stars}`;
+
+        tableData.appendChild(nameSpan);
+        tableData.appendChild(ownerSpan);
+        tableData.appendChild(starsSpan);
+
+        const tableData2 = document.createElement("th");
+        tableData2.classList.add("search__cont");
+
+        const button = document.createElement("button");
+        button.classList.add("search__btn");
+
+        const line1 = document.createElement("span");
+        line1.classList.add("search__line");
+
+        const line2 = document.createElement("span");
+        line2.classList.add("search__line");
+
+        button.appendChild(line1);
+        button.appendChild(line2);
+
+        button.addEventListener("click", () => {
+          searchSelect.removeChild(tableRow);
+        });
+
+        tableData2.appendChild(button);
+
+        tableRow.appendChild(tableData);
+        tableRow.appendChild(tableData2);
+        searchSelect.appendChild(tableRow);
+      };
+
+      // Отображение подсказок
+      const displayAutofill = (repoCards) => {
+        clearAutofill(); // Очистка старых подсказок
+        const fragment = document.createDocumentFragment();
+
+        if (repoCards.length === 0) {
+          // Если ничего не найдено, подсказка пользователю
+          searchInput.style.backgroundColor = "rgba(255, 0, 0, 0.85)";
+          dispMessage("No results found.");
+        } else {
+          // При наличии результатов отмена индикации
+          searchInput.style.backgroundColor = "";
+        }
+
+        repoCards.forEach((item) => {
+          const listItem = createRepoEl(item);
+          fragment.appendChild(listItem);
+        });
+
+        searchAutofill.appendChild(fragment);
+      };
+
+      // Создания элемента списка
+      const createRepoEl = (item) => {
+        const listItem = document.createElement("li");
+        const listLink = document.createElement("a");
+        listLink.setAttribute("href", "#");
+        listLink.textContent = item.name;
+        listItem.classList.add("search__result");
+        listLink.classList.add("search__link");
+        listItem.appendChild(listLink);
+
+        listItem.addEventListener("click", () => {
+          const { name, owner, stars } = item;
+          addRepoToTable(name, owner, stars);
+          searchInput.value = "";
+          clearAutofill();
+        });
+
+        return listItem;
+      };
+
+      // Поиск при вводе с задержкой в 500 мс
+      searchInput.addEventListener("input", debounce(searchRepo, 500));
+    </script>
+  </body>
+</html>
